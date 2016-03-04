@@ -122,16 +122,14 @@ def unify_csv(src_csv, src_lu, unify_idx, lu_key_idx, lu_val_idx):
     based on a lookup table """
     lu = csv_2_dict(src_lu, lu_key_idx, lu_val_idx)
 
-    with open(src, 'r') as f_src:
-        next(f_src)
+    with open(src_csv, 'rw') as f_src:
 
         for line in f_src:
             line = line.split(',')
             val_ori = line[unify_idx]
             val_new = lu.get(val_ori, val_ori)
             line[unify_idx] = val_new
-
-
+            line = ','.join(line)
 
 
 t0 = time.clock()
