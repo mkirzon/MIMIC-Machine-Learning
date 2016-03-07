@@ -1,6 +1,7 @@
 import os
 import csv
 import time
+from datetime import datetime
 
 """ Process original MIMIC CSV Files to reorganize the data. """
 
@@ -101,12 +102,13 @@ def chart_2_patients(src, dpath_dst, start=0, num_lines=263201375):
     print('Total rows processed: %s' % (start + i))
 
 
-def csv_2_dict(src, key_idx, val_idx):
+def csv_2_dict(src, key_idx, val_idx, header):
     """ Return a dictionary for lookups using a csv.
     Key and values columns in file are specifed by two indexes. """
     dict_lu = {}
     with open(src, 'r') as f_src:
-        next(f_src)
+        if header:
+            next(f_src)
         for line in f_src:
             line = line.split(',')
             key = line[key_idx]
@@ -117,34 +119,103 @@ def csv_2_dict(src, key_idx, val_idx):
     return dict_lu
 
 
-def unify_csv(src_csv, src_lu, unify_idx, lu_key_idx, lu_val_idx):
+def unify_csv(src_csv, src_lu, folder_name, unify_idx, lu_key_idx, lu_val_idx, csv_p_header, csv_lu_header):
     """ Create a new version of a csv where elements of a column have been unified
-    based on a lookup table """
-    lu = csv_2_dict(src_lu, lu_key_idx, lu_val_idx)
+    based on a lookup table.
+    Input Requirements:
+        - src_csv: the rows must be sorted by the column in unify_idx position. """
+    lu = csv_2_dict(src_lu, lu_key_idx, lu_val_idx, csv_lu_header)
+    dst = os.path.dirname(
+        src_csv) + '/' + folder_name + '/' + os.path.basename(src_csv)
+    writer = csv.writer(open(dst, 'w', newline=''), quotechar="'")
 
-    with open(src_csv, 'rw') as f_src:
-
+    with open(src_csv, 'r') as f_src:
         for line in f_src:
-            line = line.split(',')
-            val_ori = line[unify_idx]
-            val_new = lu.get(val_ori, val_ori)
-            line[unify_idx] = val_new
-            line = ','.join(line)
+            if csv_p_header:
+                writer.writerow(line)
+            else:
+                line = line.rstrip().split(',')
+                val_ori = line[unify_idx]
+                val_new = lu.get(val_ori, val_ori)
+                line[unify_idx] = val_new
+                writer.writerow(line)
 
 
-t0 = time.clock()
+def make_lu_csv(src_csv, id_idx, name_idx, has_header):
+    """ Create 2 files:
+        1) CSV that has unified ITEMID's based on the unified name column. 
+        The id corresponding to first unique name encountered is used as the unifying id. 
+        2) CSV with unique ID file. """
 
+    dst = os.path.splitext(src_csv)[0] + '_lu.csv'
+    f_dst = open(dst, 'w', newline='')
+    f_unique = open(os.path.dirname(src_csv) + '/ITEMID_Unique.csv', 'w')
+    writer = csv.writer(f_dst)
+
+    with open(src_csv, 'r') as f_src:
+        name_pr = ''
+        if has_header:
+            f_dst.write(f_src.readline())
+        for line in f_src:
+            line = line.rstrip().split(',')
+            name = line[name_idx]
+            id_ori = line[id_idx]
+            if name_pr == '' or name != name_pr:
+                id_univ = id_ori
+                f_unique.write(id_univ + '\n')
+            line.insert(name_idx, id_univ)
+            writer.writerow(line)
+            name_pr = name
+
+
+def patient_file_process(src_csv):
+    f_in = csv.reader(open(src_csv, 'r'))
+    
+    # Sort data by date
+    data = sorted(f_in, key=lambda row: datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S"))
+
+    # Convert dates to relative times
+    t0 = datetime.strptime(data[0][5], "%Y-%m-%d %H:%M:%S")
+    for row in data:
+        t = datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S")
+        tf = t - t0
+        row[5] = tf.total_seconds() / 60
+
+
+# File names and paths
 fname_chart = 'C:/Users/Mark/Downloads/MIMIC Data/Raw Data CSVs/CHARTEVENTS_DATA_TABLE.csv'
 fname_chart_mini = 'C:/Users/Mark/Downloads/MIMIC Data/Raw Data CSVs/CHARTEVENTS_DATA_TABLE_mini.csv'
 fname_chart_hist = 'C:/Users/Mark/Downloads/MIMIC Data/Data Summary/ChartEvents Hist - ItemID.csv'
-fname_lu_items = 'C:/Users/Mark/Downloads/MIMIC Data/Lookups/Lookup_D_ITEMS.csv'
-dpath_patientfiles = 'C:/Users/Mark/Downloads/MIMIC Data/Patient Data'
+fname_var_unif = 'C:/Users/Mark/Downloads/MIMIC Data/Lookups/MIMIC Variables Unification Table.csv'
+fname_lu_items = 'C:/Users/Mark/Downloads/MIMIC Data/Lookups/MIMIC Variables Unification Table_lu.csv'
+fname_itemid_unique = 'C:/Users/Mark/Downloads/MIMIC Data/Lookups/ITEMID_Unique.csv'
+fname_sample_patient = 'C:/Users/Mark/Downloads/MIMIC Data/Patient Data/23_124321.csv'
+dpath_patientfiles = 'C:/Users/Mark/Downloads/MIMIC Data/Patient Data/Nonunified'
 
+t0 = time.clock()
+
+
+# =========== Calculate CSV length ===========
 # num_lines = csv_length(fname_chart)  # 263201375
-# csv_2_minicsv(fname_chart, 30)
+
+# =========== Calculate ITEMID counts ===========
 # csv_hist(fname_chart, fname_chart_hist, 'ITEMID')
-# chart_2_patients(
-#     fname_chart, dpath_patientfiles, 1000000, 1000000)
-unify_csv(fname_chart_mini, fname_lu_item, 1, 2)
+
+# =========== Mini-fy CHARTEVENTS file ===========
+# csv_2_minicsv(fname_chart, 1000)
+
+# =========== Make patient files ===========
+# Step 1: Copy directly from CHARTEVENTS
+# chart_2_patients(fname_chart, dpath_patientfiles, 0, 1000)
+
+# Step 2: Unify patient file item ids
+# make_lu_csv(fname_var_unif, 1, 2, True)
+# unify_csv(fname_sample_patient, fname_lu_items, 'Unified', 4, 1, 2, False, True)
+
+# Step 3: Reorganize patient file
+patient_file_process(fname_sample_patient)
+
+
 t1 = time.clock()
+
 print("Run time: %.4f" % (t1 - t0))
