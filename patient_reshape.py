@@ -80,18 +80,27 @@ def Reshape_patient( uni_itemid_lu, itemid2Index_dict, patient_original_data, hd
     
 def make_lu_csv(src_csv, id_idx, name_idx, has_header):
     """ 
-    Input: Raw independent patient csv file
+    Input: Item ID's table with item name
     
     Create 2 files:
         1) CSV that has unified ITEMID's based on the unified name column. 
         The id corresponding to first unique name encountered is used as the unifying id. 
         2) CSV with unique ID file. """
 
-    dst = os.path.splitext(src_csv)[0] + '_lu.csv'
-    f_dst = open(dst, 'w', newline='')
-    f_unique = open(os.path.dirname(src_csv) + '/ITEMID_Unique.csv', 'w')
-    writer = csv.writer(f_dst)
-
+    #dst = os.path.splitext(src_csv)[0] + '_lu.csv'
+    #f_dst = open(dst, 'w', newline='')
+    dst1 = 'ExtraColWithUniqueID.csv'
+    f_dst = open(dst1, 'w')
+    
+    
+    #f_unique = open(os.path.dirname(src_csv) + '/ITEMID_Unique.csv', 'w')
+    
+    dst2 = 'UniqueIDLookUp.csv'
+    f_unique = open(dst2, 'w')
+    writer = csv.writer(f_dst,lineterminator='\n')
+    
+    uni_itemid_list =[]
+    
     with open(src_csv, 'r') as f_src:
         name_pr = ''
         if has_header:
@@ -103,17 +112,19 @@ def make_lu_csv(src_csv, id_idx, name_idx, has_header):
             if name_pr == '' or name != name_pr:
                 id_univ = id_ori
                 f_unique.write(id_univ + '\n')
+                uni_itemid_list.append(id_univ)
             line.insert(name_idx, id_univ)
             writer.writerow(line)
             name_pr = name
-
+            
+    return uni_itemid_list
           
                         
-def csv_2_dict(src, key_idx, val_idx, header):
+def csv_2_dict(src_csv, key_idx, val_idx, header):
     """ Return a dictionary for lookups using a csv.
     Key and values columns in file are specifed by two indexes. """
     dict_lu = {}
-    with open(src, 'r') as f_src:
+    with open(src_csv, 'r') as f_src:
         if header:
             next(f_src)
         for line in f_src:
@@ -122,17 +133,22 @@ def csv_2_dict(src, key_idx, val_idx, header):
             val = line[val_idx]
 
             if val:
-                dict_lu[key] = val
+                dict_lu[int(key)] =int(val)
     return dict_lu     
             
                  
     
-
+itemid_name_csv = 'MIMIC Variables Unification Table.csv'
 unique_itemid_csv = 'sample_files/unique_itemid_test.csv'
 patient_original_csv = 'sample_files/CHARTEVENTS_DATA_TABLE_mini.csv'
+uni_itemids_lu = 'ExtraColWithUniqueID.csv'
 
 unique_itemids = Read_unique_item(unique_itemid_csv,hdr=True)
-unique_itemids_dict = Dict_unique_item(unique_itemids)
+#itemids2Index_dict = Dict_unique_item(unique_itemids)
+unique_itemids = make_lu_csv(itemid_name_csv, 1, 2,  True)
+uni_itemids_dict = csv_2_dict(uni_itemids_lu, 1, 2, True)
+itemids2Index_dict = Dict_unique_item(unique_itemids)
+#reshaped_patient_mat = Reshape_patient(
 
 
 #tu = Reshape_patient(unique_itemids_dict,patient_original_csv, hdr = True)
