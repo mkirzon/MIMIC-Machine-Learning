@@ -2,6 +2,8 @@ import csv
 import numpy as np
 import pdb
 import pandas
+import os
+from datetime import datetime
 
 
 
@@ -31,7 +33,7 @@ def Dict_unique_item(unique_itemids):
     return item_row_dict
 
 
-def Reshape_patient( uni_itemid_lu, itemid2Index_dict, patient_original_data, hdr = False):
+def Reshape_patient( uni_itemid_lu, itemid2Index_dict, patient_original_data):
     """
     Input: 
         1. Unique item id look up dictionay. Key: original item ID's. Value: unique item ID's
@@ -48,34 +50,50 @@ def Reshape_patient( uni_itemid_lu, itemid2Index_dict, patient_original_data, hd
     timeStampsList = []
     
     #Create a 2d matrix that now has a width of itemid size but 0 length.
-    reshaped_patient_mat = np.empty(shape = [0,itemidSize])
+    reshaped_patient_mat = np.empty(shape = [1,itemidSize])
      
     # tuple = (itemID, chartTime, valueNUM, valueUOM)
-    temp_tuple = [(item[4], item[5], item[9], item[10]) for item in temp[1:]]\
-    if hdr == True else [(item[4], item[5], item[9], item[10]) for item in temp]
+    temp_tuple = [(int(item[4]), item[5], float(item[9]), item[10]) for item in temp]
     
     
     for x in temp_tuple:
-        if x[1] == timeStampsList[-1]:
+        #print(x)
+        if len(timeStampsList) == 0:
+            
+            uni_itemid = uni_itemid_lu[ x[0] ]
+            uni_itemid_index = itemid2Index_dict[ uni_itemid ]
+            
+            newRow = np.full(itemidSize,None)
+            newRow[ uni_itemid_index ] = x[2]
+            print(len(newRow))
+            print(itemidSize)
+            
+            reshaped_patient_mat[0] = newRow
+            timeStampsList.append(x[1])
+            print(timeStampsList)
+        
+        elif x[1] == timeStampsList[-1]:
             
             uni_itemid = uni_itemid_lu[ x[0] ]
             uni_itemid_index = itemid2Index_dict[ uni_itemid ]
             
             reshaped_patient_mat[-1][ uni_itemid_index ] = x[2]
+
             
         else:
             
             uni_itemid = uni_itemid_lu[ x[0] ]
             uni_itemid_index = itemid2Index_dict[ uni_itemid ]
             
-            newRow = np.zeros(itemidSize)
+            newRow = np.full(itemidSize,None)
             newRow[ uni_itemid_index ] = x[2]
             
             
-            np.append(reshaped_patient_mat, newRow, axis=0)
+            reshaped_patient_mat = np.append(reshaped_patient_mat, [newRow], axis=0)
             timeStampsList.append(x[1])
             
     
+    reshaped_patient_mat = np.transpose(reshaped_patient_mat)
     return reshaped_patient_mat
     
 def make_lu_csv(src_csv, id_idx, name_idx, has_header):
@@ -112,7 +130,7 @@ def make_lu_csv(src_csv, id_idx, name_idx, has_header):
             if name_pr == '' or name != name_pr:
                 id_univ = id_ori
                 f_unique.write(id_univ + '\n')
-                uni_itemid_list.append(id_univ)
+                uni_itemid_list.append(int(id_univ))
             line.insert(name_idx, id_univ)
             writer.writerow(line)
             name_pr = name
@@ -136,19 +154,34 @@ def csv_2_dict(src_csv, key_idx, val_idx, header):
                 dict_lu[int(key)] =int(val)
     return dict_lu     
             
-                 
+def patient_file_process(src_csv):
+    f_in = csv.reader(open(src_csv, 'r'))
+    
+    # Sort data by date
+    data = sorted(f_in, key=lambda row: datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S"))
+
+    # Convert dates to relative times
+    #t0 = datetime.strptime(data[0][5], "%Y-%m-%d %H:%M:%S")
+    #for row in data:
+        #t = datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S")
+        #tf = t - t0
+        #row[5] = tf.total_seconds() / 60
+          
+    return data       
     
 itemid_name_csv = 'MIMIC Variables Unification Table.csv'
 unique_itemid_csv = 'sample_files/unique_itemid_test.csv'
-patient_original_csv = 'sample_files/CHARTEVENTS_DATA_TABLE_mini.csv'
+patient_original_csv = 'sample_files/sample_patient_file.csv'
 uni_itemids_lu = 'ExtraColWithUniqueID.csv'
 
-unique_itemids = Read_unique_item(unique_itemid_csv,hdr=True)
+#unique_itemids = Read_unique_item(unique_itemid_csv,hdr=True)
 #itemids2Index_dict = Dict_unique_item(unique_itemids)
 unique_itemids = make_lu_csv(itemid_name_csv, 1, 2,  True)
 uni_itemids_dict = csv_2_dict(uni_itemids_lu, 1, 2, True)
 itemids2Index_dict = Dict_unique_item(unique_itemids)
-#reshaped_patient_mat = Reshape_patient(
+original_patient_data = patient_file_process(patient_original_csv)
+
+reshaped_patient_mat = Reshape_patient(uni_itemids_dict, itemids2Index_dict, original_patient_data)
 
 
 #tu = Reshape_patient(unique_itemids_dict,patient_original_csv, hdr = True)
