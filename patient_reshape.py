@@ -116,7 +116,8 @@ def make_lu_csv(src_csv, id_idx, name_idx, has_header):
     dst2 = 'UniqueIDLookUp.csv'
     f_unique = open(dst2, 'w')
     writer = csv.writer(f_dst,lineterminator='\n')
-    
+
+
     uni_itemid_list =[]
     
     with open(src_csv, 'r') as f_src:
