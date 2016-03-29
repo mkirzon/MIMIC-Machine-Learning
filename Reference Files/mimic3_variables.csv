@@ -1,0 +1,14 @@
+variable,dropBelow,minValue,maxValue,dropAbove,imputeValue
+capillary refill rate,0,0,1,1,0
+diastolic blood pressure,0.0,0.0,350.0,350.0,59.0
+fraction inspired o2,0.2,0.21,1.0,1.1,0.21
+glasgow coma scale total,0.0,0.0,15.0,15.0,11.0
+glucose,0.0,1.0,2000.0,2000.0,128.0
+heart rate,0.0,0.0,330.0,400.0,86.0
+height,0.0,0.0,240.0,250.0,170.0
+oxygen saturation,0.0,0.0,100.0,150.0,98.0
+ph,6.4,6.4,8.4,10.0,7.4
+respiratory rate,0.0,0.0,300.0,300.0,19.0
+systolic blood pressure,0.0,0.0,350.0,350.0,118.0
+temperature,14.2,26.0,44.0,47.0,37.0
+weight,0.0,0.0,250.0,250.0,81.8
